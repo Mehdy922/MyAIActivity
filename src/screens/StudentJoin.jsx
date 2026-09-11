@@ -24,6 +24,7 @@ export function StudentJoin({ uid, lockedCode = null, onJoined, onExit }) {
       await joinRoom({ code, uid, name: name.trim() });
       try { localStorage.setItem(LS_NAME, name.trim()); } catch { /* ignore */ }
       onJoined(code);
+      setBusy(false);
     } catch {
       setErr("Could not join. Check your connection and try again.");
       setBusy(false);

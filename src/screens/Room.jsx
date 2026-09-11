@@ -36,7 +36,6 @@ export function Room({ code, uid, onExit }) {
 
   const isTeacher = meta.teacherUid === uid;
   const me = members[uid];
-  if (!isTeacher && !me) return <StudentJoin uid={uid} lockedCode={code} onJoined={() => {}} onExit={onExit} />;
   if (!isTeacher && meta.closed) {
     return (
       <Centered>
@@ -45,6 +44,7 @@ export function Room({ code, uid, onExit }) {
       </Centered>
     );
   }
+  if (!isTeacher && !me) return <StudentJoin uid={uid} lockedCode={code} onJoined={() => {}} onExit={onExit} />;
 
   const role = isTeacher ? "teacher" : "student";
   const tabs = visibleTabs(role, meta.phase);
