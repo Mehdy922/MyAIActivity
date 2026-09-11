@@ -13,6 +13,7 @@ export function Lobby({ code, uid, meta, members, teams, team, isTeacher, flash 
   const myModel = useTeamModel(code, team?.id);
   const locked = Boolean(myModel.value);
   const cap = meta.teamCap || DEFAULT_TEAM_CAP;
+  const maxTeams = meta.maxTeams || null;
 
   const byTeam = useMemo(() => {
     const m = {};
@@ -24,6 +25,7 @@ export function Lobby({ code, uid, meta, members, teams, team, isTeacher, flash 
 
   const teamIds = Object.keys(teams).sort((a, b) => (teams[a].createdAt || 0) - (teams[b].createdAt || 0));
   const unassigned = Object.entries(members).filter(([, m]) => !m?.teamId);
+  const teamsFull = Boolean(maxTeams) && teamIds.length >= maxTeams;
   const joinUrl = `${window.location.origin}${import.meta.env.BASE_URL}?room=${code}`;
 
   const run = async (fn, okMsg) => {
@@ -53,11 +55,13 @@ export function Lobby({ code, uid, meta, members, teams, team, isTeacher, flash 
 
       {!isTeacher && (
         <section style={S.card} className="nl-fade">
-          <h2 style={S.h2}>{team ? "Your team" : "Make a team"}</h2>
+          <h2 style={S.h2}>{team ? "Your team" : teamsFull ? "Join a team" : "Make a team"}</h2>
           {team ? (
             <p style={S.hint}>
               You're in <b>{team.name}</b>. {locked ? "Your team has sent its machine, so you're locked in." : "Wait for your teacher to start, or switch teams below."}
             </p>
+          ) : teamsFull ? (
+            <p style={S.hint}>All {maxTeams} teams are made — join one below.</p>
           ) : (
             <form onSubmit={create} style={S.row}>
               <input className="nl-in" style={{ ...S.input, flex: 1, minWidth: 160 }} placeholder="Team name" maxLength={22}
@@ -65,12 +69,12 @@ export function Lobby({ code, uid, meta, members, teams, team, isTeacher, flash 
               <button type="submit" className="nl-btn" style={S.primary} disabled={busy || !newName.trim()}>Create</button>
             </form>
           )}
-          <p style={S.hint}>Up to {cap} per team. Or tap a team below to join it.</p>
+          <p style={S.hint}>Up to {cap} per team.{teamsFull ? "" : " Or tap a team below to join it."}</p>
         </section>
       )}
 
       <section style={{ ...S.card, gridColumn: "1 / -1" }}>
-        <h2 style={S.h2}>Teams <span style={S.badge}>{teamIds.length}</span></h2>
+        <h2 style={S.h2}>Teams <span style={S.badge}>{maxTeams ? `${teamIds.length}/${maxTeams}` : teamIds.length}</span></h2>
         {teamIds.length === 0 && (
           <p style={S.empty}>No teams yet. {isTeacher ? "Students create teams from their phones." : "Be the first!"}</p>
         )}

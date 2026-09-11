@@ -72,6 +72,15 @@ describe("meta", () => {
     await assertFails(db(TEACHER).ref(path("meta")).update({ teamCap: 0 }));
     await assertFails(db(TEACHER).ref(path("meta")).update({ teamCap: 13 }));
   });
+  it("maxTeams must be 2..20 or cleared", async () => {
+    await assertFails(db(TEACHER).ref(path("meta")).update({ maxTeams: 1 }));
+    await assertFails(db(TEACHER).ref(path("meta")).update({ maxTeams: 21 }));
+    await assertFails(db(TEACHER).ref(path("meta")).update({ maxTeams: "6" }));
+    await assertSucceeds(db(TEACHER).ref(path("meta")).update({ maxTeams: 2 }));
+    await assertSucceeds(db(TEACHER).ref(path("meta")).update({ maxTeams: 20 }));
+    await assertSucceeds(db(TEACHER).ref(path("meta")).update({ maxTeams: null }));
+    await assertFails(db("s1").ref(path("meta")).update({ maxTeams: 5 }));
+  });
 });
 
 describe("members", () => {

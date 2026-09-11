@@ -9,6 +9,7 @@
           ".validate": "newData.hasChildren(['labels', 'teamCap', 'phase', 'teacherUid'])",
           "teacherUid": { ".validate": "newData.isString()" },
           "teamCap": { ".validate": "newData.isNumber() && newData.val() >= 1 && newData.val() <= 12" },
+          "maxTeams": { ".validate": "newData.isNumber() && newData.val() >= 2 && newData.val() <= 20" },
           "phase": { ".validate": "newData.isString() && (newData.val() === 'lobby' || newData.val() === 'teach' || newData.val() === 'reveal' || newData.val() === 'fence')" },
           "labels": {
             "$i": { ".validate": "newData.isString() && newData.val().length >= 1 && newData.val().length <= 24" }

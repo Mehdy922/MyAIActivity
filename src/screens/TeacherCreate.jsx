@@ -1,11 +1,12 @@
 import { useState } from "react";
 import { S, C } from "../theme.js";
-import { createRoom, DEFAULT_LABELS, DEFAULT_TEAM_CAP } from "../rooms/api.js";
+import { createRoom, DEFAULT_LABELS, DEFAULT_TEAM_CAP, MAX_TEAMS_MIN, MAX_TEAMS_MAX } from "../rooms/api.js";
 
 export function TeacherCreate({ uid, onCreated, onBack }) {
   const [a, setA] = useState(DEFAULT_LABELS[0]);
   const [b, setB] = useState(DEFAULT_LABELS[1]);
   const [cap, setCap] = useState(DEFAULT_TEAM_CAP);
+  const [maxTeams, setMaxTeams] = useState("");
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState("");
 
@@ -13,7 +14,7 @@ export function TeacherCreate({ uid, onCreated, onBack }) {
     e.preventDefault();
     setBusy(true); setErr("");
     try {
-      const code = await createRoom({ uid, labels: [a, b], teamCap: cap });
+      const code = await createRoom({ uid, labels: [a, b], teamCap: cap, maxTeams });
       onCreated(code);
     } catch (ex) {
       setErr(ex?.message || "Could not create the room. Check your connection.");
@@ -41,6 +42,11 @@ export function TeacherCreate({ uid, onCreated, onBack }) {
         <div style={S.field}>
           <label style={S.label} htmlFor="cap">Max students per team</label>
           <input id="cap" className="nl-in" type="number" min={1} max={12} style={S.input} value={cap} onChange={(e) => setCap(Number(e.target.value))} />
+        </div>
+        <div style={S.field}>
+          <label style={S.label} htmlFor="max-teams">Max teams (optional, {MAX_TEAMS_MIN}–{MAX_TEAMS_MAX})</label>
+          <input id="max-teams" className="nl-in" type="number" min={MAX_TEAMS_MIN} max={MAX_TEAMS_MAX} style={S.input} value={maxTeams}
+            placeholder="no limit" onChange={(e) => setMaxTeams(e.target.value)} />
         </div>
         {err && <p style={{ color: C.red, fontWeight: 800, marginTop: 12 }}>{err}</p>}
         <div style={{ ...S.btnRow, justifyContent: "center" }}>

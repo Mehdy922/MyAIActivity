@@ -117,7 +117,7 @@ export function Room({ code, uid, onExit }) {
       <div style={S.strip}>
         <span style={S.chip}>{isTeacher ? "👩‍🏫 Teacher" : `🙋 ${me.name}`}</span>
         {team && <span style={S.chip}>Team {team.name}</span>}
-        <span>{teamCount} team{teamCount === 1 ? "" : "s"}</span>
+        <span>{teamCount}{meta.maxTeams ? `/${meta.maxTeams}` : ""} team{teamCount === 1 && !meta.maxTeams ? "" : "s"}</span>
         <button className="nl-btn" style={{ ...S.tiny, marginLeft: "auto" }} onClick={leave}>Leave room</button>
       </div>
 

@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { S, C } from "../theme.js";
-import { setLabels, setTeamCap, resetBoard, closeRoom } from "../rooms/api.js";
+import { setLabels, setTeamCap, setMaxTeams, resetBoard, closeRoom, MAX_TEAMS_MIN, MAX_TEAMS_MAX } from "../rooms/api.js";
 
 const RUN_SHEET = [
   ["0:00", "Teams of four. Team name in. No explaining."],
@@ -17,11 +17,14 @@ export function Settings({ code, meta, flash }) {
   const [a, setA] = useState(meta.labels?.[0] || "");
   const [b, setB] = useState(meta.labels?.[1] || "");
   const [cap, setCap] = useState(meta.teamCap || 4);
+  const [maxTeams, setMax] = useState(meta.maxTeams ? String(meta.maxTeams) : "");
   const [busy, setBusy] = useState(false);
 
   const labelA = meta.labels?.[0] || "", labelB = meta.labels?.[1] || "", metaCap = meta.teamCap || 4;
+  const metaMax = meta.maxTeams ? String(meta.maxTeams) : "";
   useEffect(() => { setA(labelA); setB(labelB); }, [labelA, labelB]);
   useEffect(() => { setCap(metaCap); }, [metaCap]);
+  useEffect(() => { setMax(metaMax); }, [metaMax]);
 
   const run = async (fn, ok) => {
     setBusy(true);
@@ -55,6 +58,18 @@ export function Settings({ code, meta, flash }) {
             <button className="nl-btn" style={S.primary} disabled={busy}
               onClick={() => run(() => setTeamCap({ code, teamCap: cap }), "Team size updated.")}>Set</button>
           </div>
+
+          <h2 style={{ ...S.h2, marginTop: 18 }}>Max teams</h2>
+          <div style={S.row}>
+            <input className="nl-in" type="number" min={MAX_TEAMS_MIN} max={MAX_TEAMS_MAX} style={{ ...S.input, width: 100 }} value={maxTeams}
+              placeholder="no limit" onChange={(e) => setMax(e.target.value)} aria-label="Max teams" />
+            <button className="nl-btn" style={S.primary} disabled={busy} aria-label="Set max teams"
+              onClick={() => run(() => setMaxTeams({ code, maxTeams }), maxTeams ? "Team limit updated." : "Team limit removed.")}>Set</button>
+          </div>
+          <p style={S.notesP}>
+            Blank means no limit. With a limit, students can only join existing teams once that many are made.
+            Teams don't have to be full — a team of 2 and a team of 4 both count.
+          </p>
         </section>
 
         <section style={S.card}>

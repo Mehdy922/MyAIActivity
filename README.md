@@ -37,7 +37,7 @@ Troubleshooting:
 
 ## Running a lesson
 
-1. Open the live URL → **Teacher** → set the pair (default Mango vs Cricket ball; try Sun vs Flower) and team size → **Create room**.
+1. Open the live URL → **Teacher** → set the pair (default Mango vs Cricket ball; try Sun vs Flower), max students per team, and optionally a max number of teams (2–20; blank = no limit) → **Create room**. Teams don't need to be full: a team of 2 and a team of 4 both count. All of these can be changed later in **Settings**.
 2. Put the Lobby on the projector: room code + QR.
 3. Students: open the URL → **Student** → code + name → create or join a team.
 4. Press **Start teaching**. Students draw 5 of each, **Train**, test with **What is it?**, then **Send my machine to the class**.

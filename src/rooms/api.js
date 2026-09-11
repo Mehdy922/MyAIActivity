@@ -7,20 +7,32 @@ export const DEFAULT_LABELS = ["Mango", "Cricket ball"];
 export const DEFAULT_TEAM_CAP = 4;
 export const TEST_PER_LABEL = 3;
 export const MAX_CHALLENGE_POINTS = 60;
+export const MAX_TEAMS_MIN = 2;
+export const MAX_TEAMS_MAX = 20;
 
 const roomRef = (code, sub = "") => ref(getFirebase().db, `rooms/${code}${sub ? "/" + sub : ""}`);
 const clampCap = (n) => Math.max(1, Math.min(12, Math.round(Number(n) || DEFAULT_TEAM_CAP)));
 const cleanLabel = (s) => String(s || "").trim().slice(0, 24);
 
+// Max number of teams in a room. Blank / 0 / junk → null (no limit); otherwise clamped to 2..20.
+export function normalizeMaxTeams(v) {
+  if (v === null || v === undefined || v === "") return null;
+  const n = Math.round(Number(v));
+  if (!Number.isFinite(n) || n <= 0) return null;
+  return Math.max(MAX_TEAMS_MIN, Math.min(MAX_TEAMS_MAX, n));
+}
+
 // ── rooms ────────────────────────────────────────────────────────────────
-export async function createRoom({ uid, labels = DEFAULT_LABELS, teamCap = DEFAULT_TEAM_CAP }) {
+export async function createRoom({ uid, labels = DEFAULT_LABELS, teamCap = DEFAULT_TEAM_CAP, maxTeams = null }) {
   for (let attempt = 0; attempt < 5; attempt++) {
     const code = generateRoomCode();
     const snap = await get(roomRef(code, "meta"));
     if (snap.exists()) continue;
+    const limit = normalizeMaxTeams(maxTeams);
     await set(roomRef(code, "meta"), {
       labels: [cleanLabel(labels[0]) || DEFAULT_LABELS[0], cleanLabel(labels[1]) || DEFAULT_LABELS[1]],
       teamCap: clampCap(teamCap),
+      ...(limit ? { maxTeams: limit } : {}),
       phase: "lobby",
       teacherUid: uid,
       createdAt: serverTimestamp(),
@@ -97,5 +109,7 @@ export async function claimChallenge({ code, id, teamId, teamName, neurons }) {
 export const setPhase = ({ code, phase }) => update(roomRef(code, "meta"), { phase });
 export const setLabels = ({ code, labels }) => update(roomRef(code, "meta"), { labels: [cleanLabel(labels[0]), cleanLabel(labels[1])] });
 export const setTeamCap = ({ code, teamCap }) => update(roomRef(code, "meta"), { teamCap: clampCap(teamCap) });
+// null removes the key → no limit.
+export const setMaxTeams = ({ code, maxTeams }) => update(roomRef(code, "meta"), { maxTeams: normalizeMaxTeams(maxTeams) });
 export const resetBoard = ({ code }) => update(roomRef(code), { models: null, challenges: null, "meta/phase": "teach" });
 export const closeRoom = ({ code }) => update(roomRef(code, "meta"), { closed: true });
