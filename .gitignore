@@ -1,0 +1,9 @@
+node_modules
+dist
+.firebase
+firebase-debug.log
+database-debug.log
+ui-debug.log
+*.local
+.claude/worktrees/
+.superpowers/
