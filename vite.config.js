@@ -5,6 +5,7 @@ export default defineConfig({
   base: "/MyAIActivity/",
   plugins: [react()],
   test: {
+    globals: true,
     environment: "jsdom",
     include: ["src/**/*.test.{js,jsx}"],
     passWithNoTests: true,
