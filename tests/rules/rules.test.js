@@ -91,6 +91,10 @@ describe("members", () => {
     await assertFails(db("s4").ref(path("members/s4")).set({ name: "x".repeat(25) }));
     await assertFails(db("s4").ref(path("members/s4")).set({ name: "" }));
   });
+  it("teamId rejects path injection and empty string", async () => {
+    await assertFails(db("s1").ref(path("members/s1")).update({ teamId: "tA/name" }));
+    await assertFails(db("s1").ref(path("members/s1")).update({ teamId: "" }));
+  });
 });
 
 describe("teams", () => {
@@ -135,5 +139,29 @@ describe("challenges", () => {
     await assertFails(db("s2").ref(path("challenges/c1")).remove());
     await assertSucceeds(db(TEACHER).ref(path("challenges/c1")).remove());
     await assertSucceeds(db(TEACHER).ref(path("challenges")).remove());
+  });
+  it("a student cannot overwrite or gut another team's challenge", async () => {
+    await assertFails(db("s2").ref(path("challenges/c1")).set({ teamId: "tB", teamName: "B", pts: [{ x: 0, y: 0, c: 0 }], at: 1 }));
+    await assertFails(db("s2").ref(path("challenges/c1/pts")).set([{ x: 0, y: 0, c: 0 }]));
+    await assertFails(db("s2").ref(path("challenges/c1/teamName")).set("Impostor"));
+    await env.withSecurityRulesDisabled((ctx) => ctx.database().ref(path("challenges/c1/best")).set({ teamId: "tA", teamName: "A", neurons: 3 }));
+    await assertFails(db("s2").ref(path("challenges/c1/best")).remove());
+    await assertSucceeds(db("s2").ref(path("challenges/c1/best")).set({ teamId: "tB", teamName: "B", neurons: 2 }));
+  });
+  it("best.neurons must be 1..8", async () => {
+    await assertFails(db("s2").ref(path("challenges/c1/best")).set({ teamId: "tB", teamName: "B", neurons: 0 }));
+    await assertFails(db("s2").ref(path("challenges/c1/best")).set({ teamId: "tB", teamName: "B", neurons: 9 }));
+  });
+});
+
+describe("multi-path updates used by the client", () => {
+  it("teacher can delete a team with its model and member links in one update", async () => {
+    await env.withSecurityRulesDisabled((ctx) => ctx.database().ref(path("models/tA")).set(validModel));
+    await assertSucceeds(db(TEACHER).ref(`rooms/${CODE}`).update({ "teams/tA": null, "models/tA": null, "members/s1/teamId": null }));
+  });
+  it("teacher can reset the board; a student cannot", async () => {
+    await env.withSecurityRulesDisabled((ctx) => ctx.database().ref(path("models/tA")).set(validModel));
+    await assertFails(db("s1").ref(`rooms/${CODE}`).update({ models: null, challenges: null, "meta/phase": "teach" }));
+    await assertSucceeds(db(TEACHER).ref(`rooms/${CODE}`).update({ models: null, challenges: null, "meta/phase": "teach" }));
   });
 });
