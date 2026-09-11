@@ -12,17 +12,27 @@ Live: https://mehdy922.github.io/neural-lab/
 1. Go to https://console.firebase.google.com → **Add project** → any name → turn Google Analytics **off** → Create.
 2. Left menu **Build → Authentication → Get started → Sign-in method → Anonymous → Enable → Save**.
 3. **Build → Realtime Database → Create database** → pick a location → **Start in locked mode** → Enable.
+   Then open the **Data** tab and copy the database URL shown at the top (it looks like
+   https://…-default-rtdb.firebaseio.com or https://…-default-rtdb.<region>.firebasedatabase.app).
+   You'll need it in step 6.
 4. **Rules** tab → replace everything with the contents of `database.rules.json` → **Publish**.
 5. Project settings (gear icon) → **General → Your apps → Web (</>)** → nickname anything → Register → copy the `firebaseConfig` values.
-6. Open `src/firebaseConfig.js`, replace each `PASTE_…` value with yours, commit, push to `main`.
+6. Use the URL copied in step 3 for `databaseURL`; the other four values (`apiKey`, `authDomain`,
+   `projectId`, `appId`) come from the web-app config in step 5.
+   Easiest: on GitHub open `src/firebaseConfig.js` → pencil icon (Edit) → replace the `PASTE_…`
+   values → Commit changes directly to `main` (or clone the repo, edit locally, commit and push).
    GitHub Actions rebuilds and deploys automatically (Actions tab shows progress).
+7. Firebase console → Authentication → Settings → Authorized domains → Add domain →
+   `mehdy922.github.io`.
+8. GitHub → repo Settings → Pages → Source: GitHub Actions. (Already done for this repo;
+   needed for forks or re-dos.)
 
 Everything runs on Firebase's free Spark plan. No card needed. Limits: 100 simultaneous
 connections, 1 GB stored, 10 GB/month download — plenty for a class.
 
 Troubleshooting:
 - Page says "Could not sign in" with `auth/admin-restricted-operation` or `auth/operation-not-allowed` → step 2 (Anonymous) is not enabled.
-- `auth/unauthorized-domain` → Authentication → Settings → Authorized domains → add `mehdy922.github.io`.
+- `auth/unauthorized-domain` → see step 7 (Authorized domains).
 - Students see "permission denied" toasts → step 4 (rules) not published, or published to a different database.
 
 ## Running a lesson
@@ -35,7 +45,6 @@ Troubleshooting:
 6. Second period: **Open bendy fence**.
 
 Teacher tips, run sheet and the one rule are in the **Settings** tab inside the room.
-Bookmark the room URL — the teacher role is tied to this browser.
 
 ## Development
 

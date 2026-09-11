@@ -5,6 +5,7 @@ import { captureFromCanvas } from "../ml/capture.js";
 export const DrawCanvas = forwardRef(function DrawCanvas({ size = 300, onStrokeStart }, ref) {
   const cvs = useRef(null);
   const drawing = useRef(false);
+  const last = useRef({ x: 0, y: 0 });
 
   const clear = useCallback(() => {
     const c = cvs.current; if (!c) return;
@@ -31,12 +32,14 @@ export const DrawCanvas = forwardRef(function DrawCanvas({ size = 300, onStrokeS
     ctx.strokeStyle = "#111"; ctx.lineWidth = 14; ctx.lineCap = "round"; ctx.lineJoin = "round";
     const [x, y] = pos(e);
     ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x + 0.01, y + 0.01); ctx.stroke();
+    last.current = { x, y };
   };
   const move = (e) => {
     if (!drawing.current) return;
     const ctx = cvs.current.getContext("2d");
     const [x, y] = pos(e);
-    ctx.lineTo(x, y); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(last.current.x, last.current.y); ctx.lineTo(x, y); ctx.stroke();
+    last.current = { x, y };
   };
   const up = () => { drawing.current = false; };
 

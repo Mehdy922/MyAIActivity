@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { CSS, S, C } from "./theme.js";
 import { isConfigured } from "./firebase.js";
 import { useAuth } from "./rooms/hooks.js";
@@ -9,6 +9,7 @@ import { StudentJoin } from "./screens/StudentJoin.jsx";
 import { Room } from "./screens/Room.jsx";
 
 const LS_ROOM = "nl.room";
+const LS_LAST_ROOM = "nl.lastRoom";
 
 function codeFromUrl() {
   const c = normalizeCode(new URLSearchParams(window.location.search).get("room"));
@@ -22,6 +23,9 @@ function rememberCode(code) {
   const url = new URL(window.location.href);
   if (code) url.searchParams.set("room", code); else url.searchParams.delete("room");
   window.history.replaceState(null, "", url);
+}
+function lastCode() {
+  try { const c = localStorage.getItem(LS_LAST_ROOM); return isValidCode(c) ? c : null; } catch { return null; }
 }
 
 function Centered({ children }) {
@@ -43,8 +47,13 @@ function Shell() {
   const [code, setCode] = useState(() => codeFromUrl() || savedCode());
   const [choice, setChoice] = useState(null);
 
+  useEffect(() => { if (code) rememberCode(code); }, [code]);
+
   const enter = (c) => { rememberCode(c); setCode(c); };
-  const exit = () => { rememberCode(null); setCode(null); setChoice(null); };
+  const exit = () => {
+    try { localStorage.setItem(LS_LAST_ROOM, code || ""); } catch { /* ignore */ }
+    rememberCode(null); setCode(null); setChoice(null);
+  };
 
   if (error) {
     return (
@@ -58,7 +67,7 @@ function Shell() {
   if (code) return <Room code={code} uid={uid} onExit={exit} />;
   if (choice === "teacher") return <TeacherCreate uid={uid} onCreated={enter} onBack={() => setChoice(null)} />;
   if (choice === "student") return <StudentJoin uid={uid} onJoined={enter} onExit={() => setChoice(null)} />;
-  return <Landing onChoose={setChoice} />;
+  return <Landing onChoose={setChoice} rejoinCode={lastCode()} onRejoin={enter} />;
 }
 
 export default function App() {

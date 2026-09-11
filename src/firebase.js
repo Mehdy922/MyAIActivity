@@ -3,9 +3,13 @@ import { getAuth, signInAnonymously, onAuthStateChanged } from "firebase/auth";
 import { getDatabase, ref, onValue } from "firebase/database";
 import { firebaseConfig } from "./firebaseConfig.js";
 
+const REQUIRED_CONFIG_KEYS = ["apiKey", "authDomain", "databaseURL", "projectId", "appId"];
+
 export function isConfigured(cfg = firebaseConfig) {
-  const vals = Object.values(cfg || {});
-  return vals.length > 0 && vals.every((v) => typeof v === "string" && v.length > 0 && !v.includes("PASTE"));
+  return REQUIRED_CONFIG_KEYS.every((k) => {
+    const v = cfg?.[k];
+    return typeof v === "string" && v.length > 0 && !v.includes("PASTE");
+  });
 }
 
 let cached = null;

@@ -48,6 +48,7 @@
               "nIn": { ".validate": "newData.val() === 256" },
               "nHid": { ".validate": "newData.val() === 10" }
             },
+            "tests": { ".validate": "!newData.child('12').exists()" },
             "own": { ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 1" },
             "sentBy": { ".validate": "newData.isString()" }
           }
@@ -59,6 +60,7 @@
             ".write": "auth != null && !data.exists() && newData.exists()",
             "teamId": { ".validate": "newData.isString()" },
             "teamName": { ".validate": "newData.isString() && newData.val().length <= 22" },
+            "pts": { ".validate": "!newData.child('60').exists()" },
             "best": {
               ".write": "auth != null && newData.exists()",
               ".validate": "newData.hasChildren(['teamId', 'teamName', 'neurons'])",

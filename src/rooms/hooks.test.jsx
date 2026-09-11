@@ -3,10 +3,12 @@ import { renderHook, act, waitFor } from "@testing-library/react";
 
 const subs = new Map();   // path -> callback
 const offs = new Map();   // path -> unsubscribe spy
+const errs = new Map();   // path -> error callback
 
 vi.mock("../firebase.js", () => ({
-  subscribe: (path, cb) => {
+  subscribe: (path, cb, onError) => {
     subs.set(path, cb);
+    errs.set(path, onError);
     const off = vi.fn(() => subs.delete(path));
     offs.set(path, off);
     return off;
@@ -16,7 +18,7 @@ vi.mock("../firebase.js", () => ({
 
 import { usePath, useRoom, useAuth } from "./hooks.js";
 
-beforeEach(() => { subs.clear(); offs.clear(); });
+beforeEach(() => { subs.clear(); offs.clear(); errs.clear(); });
 
 const fire = (path, value) => act(() => { subs.get(path)(value); });
 
@@ -43,6 +45,11 @@ describe("usePath", () => {
     unmount();
     expect(offs.get("rooms/X/models")).toHaveBeenCalled();
   });
+  it("exposes a subscription error", () => {
+    const { result } = renderHook(() => usePath("rooms/X/meta"));
+    act(() => { errs.get("rooms/X/meta")(new Error("PERMISSION_DENIED")); });
+    expect(result.current.error.message).toBe("PERMISSION_DENIED");
+  });
 });
 
 describe("useRoom", () => {
@@ -55,6 +62,7 @@ describe("useRoom", () => {
   it("exposes live state", () => {
     const { result } = renderHook(() => useRoom("ABCDE"));
     fire("rooms/ABCDE/meta", { phase: "teach", teacherUid: "t" });
+    expect(result.current.loading).toBe(true);
     fire("rooms/ABCDE/members", { u1: { name: "Sana", teamId: "t1" } });
     fire("rooms/ABCDE/teams", { t1: { name: "A" } });
     expect(result.current.loading).toBe(false);

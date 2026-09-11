@@ -130,6 +130,10 @@ describe("models", () => {
     await assertFails(db("s1").ref(path("models")).remove());
     await assertSucceeds(db(TEACHER).ref(path("models")).remove());
   });
+  it("rejects a model with more than 12 tests", async () => {
+    const tooMany = { ...validModel, tests: Array.from({ length: 13 }, (_, i) => ({ label: i % 2, pix: [0, 1] })) };
+    await assertFails(db("s1").ref(path("models/tA")).set(tooMany));
+  });
 });
 
 describe("challenges", () => {
@@ -151,6 +155,10 @@ describe("challenges", () => {
   it("best.neurons must be 1..8", async () => {
     await assertFails(db("s2").ref(path("challenges/c1/best")).set({ teamId: "tB", teamName: "B", neurons: 0 }));
     await assertFails(db("s2").ref(path("challenges/c1/best")).set({ teamId: "tB", teamName: "B", neurons: 9 }));
+  });
+  it("rejects a challenge with more than 60 points", async () => {
+    const tooMany = { teamId: "tB", teamName: "B", pts: Array.from({ length: 61 }, () => ({ x: 0, y: 0, c: 0 })), at: 1 };
+    await assertFails(db("s2").ref(path("challenges/c2")).set(tooMany));
   });
 });
 

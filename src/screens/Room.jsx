@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { S } from "../theme.js";
 import { useRoom } from "../rooms/hooks.js";
 import { visibleTabs } from "../rooms/phases.js";
@@ -18,12 +18,41 @@ function Centered({ children }) {
 }
 
 export function Room({ code, uid, onExit }) {
-  const { meta, members, teams, loading, missing } = useRoom(code);
+  const { meta, members, teams, loading, missing, error } = useRoom(code);
   const { toast, flash } = useToast();
   const [tab, setTab] = useState("lobby");
   const [busy, setBusy] = useState(false);
+  const [slow, setSlow] = useState(false);
 
-  if (loading) return <Centered><p style={S.lede}>Opening room {code}…</p></Centered>;
+  useEffect(() => {
+    if (!loading) { setSlow(false); return undefined; }
+    const t = setTimeout(() => setSlow(true), 8000);
+    return () => clearTimeout(t);
+  }, [loading]);
+
+  if (error) {
+    return (
+      <Centered>
+        <h2 style={S.h2}>Could not open the room</h2>
+        <p style={S.hint}><code>{error.code || error.message || String(error)}</code></p>
+        <p style={S.hint}>If you're the teacher: publish <code>database.rules.json</code> in the Firebase console (Realtime Database → Rules).</p>
+        <button className="nl-btn" style={{ ...S.ghost, marginTop: 14 }} onClick={onExit}>Back to start</button>
+      </Centered>
+    );
+  }
+  if (loading) {
+    return (
+      <Centered>
+        <p style={S.lede}>Opening room {code}…</p>
+        {slow && (
+          <>
+            <p style={S.hint}>Still connecting — check your wifi.</p>
+            <button className="nl-btn" style={{ ...S.ghost, marginTop: 14 }} onClick={onExit}>Back to start</button>
+          </>
+        )}
+      </Centered>
+    );
+  }
   if (missing) {
     return (
       <Centered>
@@ -62,6 +91,14 @@ export function Room({ code, uid, onExit }) {
 
   const props = { code, uid, meta, members, teams, labels, team, isTeacher, flash };
 
+  const leave = () => {
+    if (isTeacher) {
+      const ok = window.confirm(`Leave room ${code}? Your class keeps running. You can come back from the start screen with "Rejoin room ${code}".`);
+      if (!ok) return;
+    }
+    onExit();
+  };
+
   return (
     <div style={S.app}>
       <header style={S.head}>
@@ -81,7 +118,7 @@ export function Room({ code, uid, onExit }) {
         <span style={S.chip}>{isTeacher ? "👩‍🏫 Teacher" : `🙋 ${me.name}`}</span>
         {team && <span style={S.chip}>Team {team.name}</span>}
         <span>{teamCount} team{teamCount === 1 ? "" : "s"}</span>
-        <button className="nl-btn" style={{ ...S.tiny, marginLeft: "auto" }} onClick={onExit}>Leave room</button>
+        <button className="nl-btn" style={{ ...S.tiny, marginLeft: "auto" }} onClick={leave}>Leave room</button>
       </div>
 
       {active === "lobby" && <Lobby {...props} />}

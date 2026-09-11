@@ -12,4 +12,16 @@ describe("Landing", () => {
     fireEvent.click(screen.getByRole("button", { name: /Student/ }));
     expect(onChoose).toHaveBeenCalledWith("student");
   });
+
+  it("offers to rejoin the last room", () => {
+    const onRejoin = vi.fn();
+    render(<Landing onChoose={vi.fn()} rejoinCode="ABCDE" onRejoin={onRejoin} />);
+    fireEvent.click(screen.getByRole("button", { name: /Rejoin room ABCDE/ }));
+    expect(onRejoin).toHaveBeenCalledWith("ABCDE");
+  });
+
+  it("does not offer a rejoin button without a rejoinCode", () => {
+    render(<Landing onChoose={vi.fn()} />);
+    expect(screen.queryByRole("button", { name: /Rejoin room/ })).toBeNull();
+  });
 });

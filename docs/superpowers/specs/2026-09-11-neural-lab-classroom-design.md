@@ -76,7 +76,7 @@ Students who join during `teach` or later can still form/join a team and draw.
 - **Hosting**: GitHub Pages from the existing repo `Mehdy922/neural-lab`
   via a GitHub Actions workflow on push to `main`. Vite `base` set to
   `/neural-lab/`. Live URL: `https://mehdy922.github.io/neural-lab/`.
-- **Config**: Firebase web config object committed in `src/firebase.js`
+- **Config**: Firebase web config object committed in `src/firebaseConfig.js`
   (public by design; security is in RTDB rules). README gives the exact
   console steps: create project → enable Anonymous sign-in → create RTDB
   (locked mode) → paste config → deploy rules.
@@ -282,7 +282,7 @@ The prototype's dark indigo "ajrak" palette is replaced.
 2. Build → Authentication → Sign-in method → enable **Anonymous**.
 3. Build → Realtime Database → Create database → locked mode.
 4. Project settings → Your apps → Web app → copy config → paste into
-   `src/firebase.js`.
+   `src/firebaseConfig.js`.
 5. Deploy rules: either paste `database.rules.json` into the Rules tab, or
    `npx firebase deploy --only database` after `firebase login`.
 6. Repo → Settings → Pages → Source: GitHub Actions. Push to `main` deploys.

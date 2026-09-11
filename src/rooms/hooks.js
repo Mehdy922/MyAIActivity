@@ -5,7 +5,7 @@ export function useAuth() {
   const [state, setState] = useState({ uid: null, error: null });
   useEffect(() => {
     let alive = true;
-    ensureAuth()
+    Promise.resolve().then(() => ensureAuth())
       .then((uid) => alive && setState({ uid, error: null }))
       .catch((error) => alive && setState({ uid: null, error }));
     return () => { alive = false; };
@@ -16,13 +16,15 @@ export function useAuth() {
 // value: undefined while loading, null when the node does not exist.
 export function usePath(path, enabled = true) {
   const [value, setValue] = useState(undefined);
+  const [error, setError] = useState(null);
   useEffect(() => {
-    if (!enabled || !path) { setValue(undefined); return undefined; }
+    if (!enabled || !path) { setValue(undefined); setError(null); return undefined; }
     setValue(undefined);
-    const off = subscribe(path, (v) => setValue(v === undefined ? null : v));
+    setError(null);
+    const off = subscribe(path, (v) => setValue(v === undefined ? null : v), (e) => setError(e));
     return () => off();
   }, [path, enabled]);
-  return { value, loading: value === undefined };
+  return { value, loading: value === undefined, error };
 }
 
 export function useRoom(code) {
@@ -33,8 +35,9 @@ export function useRoom(code) {
     meta: meta.value,
     members: members.value || {},
     teams: teams.value || {},
-    loading: meta.loading,
+    loading: meta.loading || members.loading || teams.loading,
     missing: meta.value === null,
+    error: meta.error || members.error || teams.error || null,
   };
 }
 
