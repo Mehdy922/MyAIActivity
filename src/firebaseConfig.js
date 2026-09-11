@@ -1,10 +1,9 @@
-// Paste your Firebase web app config here.
-// Firebase console → Project settings → General → Your apps → Web app → SDK setup and configuration → Config.
-// These values are safe to commit: security lives in database.rules.json, not here.
+// Firebase web app config for Neural Lab (project myaiactivity-d8bcd).
+// Safe to commit: access is controlled by database.rules.json, not by these values.
 export const firebaseConfig = {
-  apiKey: "PASTE_API_KEY",
-  authDomain: "PASTE_PROJECT_ID.firebaseapp.com",
-  databaseURL: "https://PASTE_PROJECT_ID-default-rtdb.firebaseio.com",
-  projectId: "PASTE_PROJECT_ID",
-  appId: "PASTE_APP_ID",
+  apiKey: "AIzaSyBiQh-wQMXyX43ispt2rSn9Ozp6PjlCw3g",
+  authDomain: "myaiactivity-d8bcd.firebaseapp.com",
+  databaseURL: "https://myaiactivity-d8bcd-default-rtdb.asia-southeast1.firebasedatabase.app",
+  projectId: "myaiactivity-d8bcd",
+  appId: "1:318091613488:web:6e017bbf0e2223546024f5",
 };
