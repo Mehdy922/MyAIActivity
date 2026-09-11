@@ -195,6 +195,7 @@ ui-debug.log
 
 Run: `npm install`
 Expected: completes, `package-lock.json` created, no ERESOLVE errors.
+Fallback if npm reports ERESOLVE on `@vitejs/plugin-react`: pin `"vite": "^7.1.0"` and `"@vitejs/plugin-react": "^5.0.0"` (Vitest 5 supports Vite 7) and re-run.
 
 Run: `npm run build`
 Expected: `dist/index.html` exists, output mentions `/MyAIActivity/assets/...`.
@@ -268,12 +269,17 @@ jobs:
         uses: actions/deploy-pages@v4
 ```
 
-- [ ] **Step 2: Enable Pages with Actions as source**
+- [ ] **Step 2: Make the repo public (user has confirmed), then enable Pages with Actions as source**
+
+The repo was private on 2026-09-11. Free GitHub Pages requires a public repo. Nothing in the repo is secret: the Firebase web config is public by design and access is controlled by `database.rules.json`.
 
 Run:
 ```bash
+gh repo edit Mehdy922/MyAIActivity --visibility public --accept-visibility-change-consequences
+gh repo view Mehdy922/MyAIActivity --json visibility
 gh api -X POST repos/Mehdy922/MyAIActivity/pages -f build_type=workflow
 ```
+Expected: `{"visibility":"PUBLIC"}`, then Pages JSON with `"build_type": "workflow"`.
 Expected: JSON with `"build_type": "workflow"`. If HTTP 409 "already exists", run instead:
 ```bash
 gh api -X PUT repos/Mehdy922/MyAIActivity/pages -f build_type=workflow
@@ -1340,18 +1346,23 @@ export function getFirebase() {
 }
 
 // Resolves with the anonymous uid. Rejects if Anonymous sign-in is not enabled in the console.
+// One in-flight promise for the whole app: React StrictMode double-runs effects in dev, and two
+// concurrent signInAnonymously calls would create two users and desync uid from auth.currentUser.
+let authPromise = null;
 export function ensureAuth() {
+  if (authPromise) return authPromise;
   const { auth } = getFirebase();
-  return new Promise((resolve, reject) => {
+  authPromise = new Promise((resolve, reject) => {
     const off = onAuthStateChanged(
       auth,
       (user) => {
         if (user) { off(); resolve(user.uid); return; }
-        signInAnonymously(auth).catch((e) => { off(); reject(e); });
+        signInAnonymously(auth).catch((e) => { off(); authPromise = null; reject(e); });
       },
-      (e) => { off(); reject(e); }
+      (e) => { off(); authPromise = null; reject(e); }
     );
   });
+  return authPromise;
 }
 
 export function subscribe(path, cb, onError) {
@@ -3682,6 +3693,11 @@ Live: https://mehdy922.github.io/MyAIActivity/
 
 Everything runs on Firebase's free Spark plan. No card needed. Limits: 100 simultaneous
 connections, 1 GB stored, 10 GB/month download — plenty for a class.
+
+Troubleshooting:
+- Page says "Could not sign in" with `auth/admin-restricted-operation` or `auth/operation-not-allowed` → step 2 (Anonymous) is not enabled.
+- `auth/unauthorized-domain` → Authentication → Settings → Authorized domains → add `mehdy922.github.io`.
+- Students see "permission denied" toasts → step 4 (rules) not published, or published to a different database.
 
 ## Running a lesson
 
