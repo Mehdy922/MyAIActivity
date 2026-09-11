@@ -40,7 +40,7 @@ export function TeamCard({ teamId, team, members = [], cap = 4, isMine = false, 
           </>
         ) : (
           <>
-            <button className="nl-btn" style={S.tiny} onClick={() => setEditing(true)}>Rename</button>
+            <button className="nl-btn" style={S.tiny} onClick={() => { setName(team?.name || ""); setEditing(true); }}>Rename</button>
             <button className="nl-btn" style={{ ...S.tiny, color: C.red }} onClick={() => onDelete?.(teamId)}>Delete</button>
           </>
         ))}
