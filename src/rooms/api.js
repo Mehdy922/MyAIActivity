@@ -2,6 +2,7 @@ import { ref, get, set, update, push, runTransaction, serverTimestamp } from "fi
 import { getFirebase } from "../firebase.js";
 import { generateRoomCode } from "./codes.js";
 import { packNet, packPix } from "../ml/net.js";
+import { buildTournamentTable } from "../ml/scoring.js";
 
 export const DEFAULT_LABELS = ["Mango", "Cricket ball"];
 export const DEFAULT_TEAM_CAP = 4;
@@ -33,6 +34,7 @@ export async function createRoom({ uid, labels = DEFAULT_LABELS, teamCap = DEFAU
       labels: [cleanLabel(labels[0]) || DEFAULT_LABELS[0], cleanLabel(labels[1]) || DEFAULT_LABELS[1]],
       teamCap: clampCap(teamCap),
       ...(limit ? { maxTeams: limit } : {}),
+      round: 1,
       phase: "lobby",
       teacherUid: uid,
       createdAt: serverTimestamp(),
@@ -111,5 +113,34 @@ export const setLabels = ({ code, labels }) => update(roomRef(code, "meta"), { l
 export const setTeamCap = ({ code, teamCap }) => update(roomRef(code, "meta"), { teamCap: clampCap(teamCap) });
 // null removes the key → no limit.
 export const setMaxTeams = ({ code, maxTeams }) => update(roomRef(code, "meta"), { maxTeams: normalizeMaxTeams(maxTeams) });
-export const resetBoard = ({ code }) => update(roomRef(code), { models: null, challenges: null, "meta/phase": "teach" });
+export const resetBoard = ({ code }) =>
+  update(roomRef(code), { models: null, challenges: null, rounds: null, "meta/phase": "teach", "meta/round": 1 });
 export const closeRoom = ({ code }) => update(roomRef(code, "meta"), { closed: true });
+
+// ── rounds ───────────────────────────────────────────────────────────────
+// Leaderboard rows → { [teamId]: { name, own, cross } } with nulls dropped (RTDB rejects null leaves).
+export function summarizeRound(rows) {
+  const out = {};
+  for (const r of rows || []) {
+    const e = { name: r.name };
+    if (typeof r.own === "number") e.own = r.own;
+    if (typeof r.cross === "number") e.cross = r.cross;
+    out[r.teamId] = e;
+  }
+  return out;
+}
+
+// Teacher: save this round's scores, clear the sent machines, go back to teaching as round+1.
+// One atomic multi-path update so students never see a half-advanced room.
+export async function nextRound({ code, round, teams }) {
+  const models = (await get(roomRef(code, "models"))).val();
+  const results = summarizeRound(buildTournamentTable(models, teams));
+  const current = Math.max(1, Math.round(Number(round) || 1));
+  await update(roomRef(code), {
+    [`rounds/${current}`]: results,
+    models: null,
+    "meta/round": current + 1,
+    "meta/phase": "teach",
+  });
+  return current + 1;
+}

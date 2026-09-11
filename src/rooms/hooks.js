@@ -43,4 +43,5 @@ export function useRoom(code) {
 
 export const useModels = (code, enabled = true) => usePath(code ? `rooms/${code}/models` : null, enabled);
 export const useChallenges = (code, enabled = true) => usePath(code ? `rooms/${code}/challenges` : null, enabled);
+export const useRounds = (code, enabled = true) => usePath(code ? `rooms/${code}/rounds` : null, enabled);
 export const useTeamModel = (code, teamId) => usePath(code && teamId ? `rooms/${code}/models/${teamId}` : null, Boolean(teamId));

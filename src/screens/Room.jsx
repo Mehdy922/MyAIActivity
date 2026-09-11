@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { S } from "../theme.js";
 import { useRoom } from "../rooms/hooks.js";
 import { visibleTabs } from "../rooms/phases.js";
-import { setPhase, DEFAULT_LABELS } from "../rooms/api.js";
+import { setPhase, nextRound, DEFAULT_LABELS } from "../rooms/api.js";
 import { Tabs } from "../components/Tabs.jsx";
 import { Toast, useToast } from "../components/Toast.jsx";
 import { PhaseBar } from "../components/PhaseBar.jsx";
@@ -81,6 +81,7 @@ export function Room({ code, uid, onExit }) {
   const team = me?.teamId && teams[me.teamId] ? { id: me.teamId, name: teams[me.teamId].name } : null;
   const labels = meta.labels?.length === 2 ? meta.labels : DEFAULT_LABELS;
   const teamCount = Object.keys(teams).length;
+  const round = meta.round || 1;
 
   const advance = async (next) => {
     setBusy(true);
@@ -89,7 +90,18 @@ export function Room({ code, uid, onExit }) {
     finally { setBusy(false); }
   };
 
-  const props = { code, uid, meta, members, teams, labels, team, isTeacher, flash };
+  const startNextRound = async () => {
+    const ok = window.confirm(
+      `Start round ${round + 1}? This saves the round ${round} scores, clears every sent machine, and sends teams back to Teach it. Their drawings stay on their phones.`
+    );
+    if (!ok) return;
+    setBusy(true);
+    try { await nextRound({ code, round, teams }); setTab("lobby"); flash(`Round ${round + 1} — teams can improve and send again.`); }
+    catch { flash("Could not start the next round."); }
+    finally { setBusy(false); }
+  };
+
+  const props = { code, uid, meta, members, teams, labels, team, isTeacher, flash, round };
 
   const leave = () => {
     if (isTeacher) {
@@ -112,11 +124,12 @@ export function Room({ code, uid, onExit }) {
         <Tabs tabs={tabs} active={active} onChange={setTab} />
       </header>
 
-      {isTeacher && <PhaseBar phase={meta.phase} onAdvance={advance} busy={busy} />}
+      {isTeacher && <PhaseBar phase={meta.phase} round={round} onAdvance={advance} onNextRound={startNextRound} busy={busy} />}
 
       <div style={S.strip}>
         <span style={S.chip}>{isTeacher ? "👩‍🏫 Teacher" : `🙋 ${me.name}`}</span>
         {team && <span style={S.chip}>Team {team.name}</span>}
+        {round > 1 && <span style={S.badge}>Round {round}</span>}
         <span>{teamCount}{meta.maxTeams ? `/${meta.maxTeams}` : ""} team{teamCount === 1 && !meta.maxTeams ? "" : "s"}</span>
         <button className="nl-btn" style={{ ...S.tiny, marginLeft: "auto" }} onClick={leave}>Leave room</button>
       </div>

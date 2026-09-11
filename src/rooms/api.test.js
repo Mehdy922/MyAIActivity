@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { pickTests, buildModelPayload, normalizeMaxTeams, TEST_PER_LABEL, DEFAULT_LABELS, DEFAULT_TEAM_CAP, MAX_TEAMS_MIN, MAX_TEAMS_MAX } from "./api.js";
+import { pickTests, buildModelPayload, normalizeMaxTeams, summarizeRound, TEST_PER_LABEL, DEFAULT_LABELS, DEFAULT_TEAM_CAP, MAX_TEAMS_MIN, MAX_TEAMS_MAX } from "./api.js";
 import { newNet } from "../ml/net.js";
 
 const mk = (label, v) => ({ label, pix: new Array(4).fill(v) });
@@ -40,6 +40,19 @@ describe("defaults", () => {
   it("labels and cap", () => {
     expect(DEFAULT_LABELS).toEqual(["Mango", "Cricket ball"]);
     expect(DEFAULT_TEAM_CAP).toBe(4);
+  });
+});
+
+describe("summarizeRound", () => {
+  it("keeps name/own/cross per team and drops nulls so RTDB accepts it", () => {
+    const rows = [
+      { teamId: "tA", name: "Aloo", own: 1, cross: 0.75, n: 4 },
+      { teamId: "tB", name: "Solo", own: 0.9, cross: null, n: 0 },
+    ];
+    expect(summarizeRound(rows)).toEqual({ tA: { name: "Aloo", own: 1, cross: 0.75 }, tB: { name: "Solo", own: 0.9 } });
+  });
+  it("is empty for no rows", () => {
+    expect(summarizeRound([])).toEqual({});
   });
 });
 

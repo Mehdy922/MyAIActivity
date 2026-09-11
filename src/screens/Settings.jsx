@@ -92,6 +92,12 @@ export function Settings({ code, meta, flash }) {
             Words to keep out of the room: overfitting, generalisation, bias, training data. They will
             describe all four in their own words. That is better than the terms.
           </p>
+          <h2 style={{ ...S.h2, marginTop: 18 }}>Round 2, if the class is hooked</h2>
+          <p style={S.notesP}>
+            After the reveal, press <b>Next round</b> instead of moving on. Teams keep their drawings, add more
+            in styles other teams might use, retrain and send again. The next reveal shows each team's change.
+            Ask before they draw: what would you need to show the machine so it stops caring who drew it?
+          </p>
           <h2 style={{ ...S.h2, marginTop: 18 }}>Bendy fence, if you get a second period</h2>
           <p style={S.notesP}>
             One neuron draws a straight fence. Ask teams to make a pattern no straight fence can split,
@@ -102,7 +108,7 @@ export function Settings({ code, meta, flash }) {
 
         <section style={{ ...S.card, borderLeft: `8px solid ${C.red}` }}>
           <h2 style={S.h2}>Danger zone</h2>
-          <p style={S.notesP}>Reset wipes every sent machine and every challenge, and puts the room back in the teaching phase. Teams and members stay.</p>
+          <p style={S.notesP}>Reset wipes every sent machine, every challenge and the round history, and puts the room back to round 1 in the teaching phase. Teams and members stay.</p>
           <div style={S.btnRow}>
             <button className="nl-btn" style={S.danger} disabled={busy}
               onClick={() => window.confirm("Erase every model and challenge from the class board?") && run(() => resetBoard({ code }), "Class board cleared.")}>

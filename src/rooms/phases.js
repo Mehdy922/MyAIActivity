@@ -15,6 +15,9 @@ export const PHASE_ACTIONS = {
   reveal: "Open bendy fence",
 };
 
+// Offered alongside "Open bendy fence" at reveal: save scores, clear machines, back to teach as round+1.
+export const ROUND_ACTION = "Next round";
+
 const idx = (p) => PHASES.indexOf(p);
 
 export function visibleTabs(role, phase) {

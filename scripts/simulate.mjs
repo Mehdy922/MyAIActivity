@@ -1,7 +1,10 @@
 // Bot simulation of a full Neural Lab lesson against the LIVE Firebase project.
 //
 //   npm run simulate                      # 4 teams, 9 students, max teams 3 → one team over the limit, cleans up
-//   npm run simulate -- --students 12 --max-teams 4 --keep
+//   npm run simulate -- --students 12 --max-teams 4 --rounds 2 --keep
+//
+// --rounds 2 makes the teacher press "Next round" after the first reveal: teams add drawings in
+// OTHER teams' styles, retrain, send again, and the second reveal shows each team's change.
 //
 // --keep leaves the room in the database so you can open it on the projector
 // (Teacher tabs need the bot-teacher's browser, but any Student can join with the code).
@@ -9,12 +12,12 @@
 
 import { initializeApp } from "firebase/app";
 import { getAuth, signInAnonymously } from "firebase/auth";
-import { getDatabase, ref, get, set, update, push, remove, runTransaction, serverTimestamp } from "firebase/database";
+import { getDatabase, connectDatabaseEmulator, ref, get, set, update, push, remove, runTransaction, serverTimestamp } from "firebase/database";
 import { firebaseConfig } from "../src/firebaseConfig.js";
 import { newNet, trainEpochs, accuracy, fwd, HID_A, EPOCHS_A, LR_A, MIN_PER_LABEL, pct, mulberry32 } from "../src/ml/net.js";
 import { GRID, NPIX } from "../src/ml/capture.js";
-import { buildModelPayload, DEFAULT_TEAM_CAP, normalizeMaxTeams } from "../src/rooms/api.js";
-import { buildTournamentTable, tableAverages, MIN_TEAMS_MEANINGFUL } from "../src/ml/scoring.js";
+import { buildModelPayload, summarizeRound, DEFAULT_TEAM_CAP, normalizeMaxTeams } from "../src/rooms/api.js";
+import { buildTournamentTable, tableAverages, withDeltas, historyAverages, MIN_TEAMS_MEANINGFUL } from "../src/ml/scoring.js";
 import { generateRoomCode } from "../src/rooms/codes.js";
 import { visibleTabs } from "../src/rooms/phases.js";
 
@@ -24,6 +27,14 @@ const N_STUDENTS = Number(arg("students", 9));
 const MAX_TEAMS = normalizeMaxTeams(arg("max-teams", 3));
 const TEAM_CAP = DEFAULT_TEAM_CAP;
 const KEEP = process.argv.includes("--keep");
+const ROUNDS = Math.max(1, Number(arg("rounds", 1)));
+// --emulator: real (live) anonymous auth, but all database traffic goes to the local emulator on :9000,
+// which serves database.rules.json. Use it to test rule changes before publishing them:
+//   npx firebase emulators:exec --only database --project demo-neural-lab "node scripts/simulate.mjs --rounds 2 --emulator"
+// Under `firebase emulators:exec` the SDK auto-connects through FIREBASE_DATABASE_EMULATOR_HOST.
+// NOTE: the emulator treats real (production) sign-in tokens as admin, so security-rule checks are
+// skipped there — the emulator rules tests (npm run test:rules) cover them with mock tokens.
+const EMULATOR = process.argv.includes("--emulator") || Boolean(process.env.FIREBASE_DATABASE_EMULATOR_HOST);
 const LABELS = ["Mango", "Cricket ball"];
 const NAMES = ["Sana", "Bilal", "Zara", "Ahmed", "Hira", "Usman", "Ayesha", "Hamza", "Noor", "Ali", "Mariam", "Faisal", "Iqra", "Danish", "Laiba", "Saad"];
 const TEAM_NAMES = ["Aloo Gosht", "Bhindi Masala", "Chai Wallahs", "Daal Chawal", "Emaan FC", "Falooda"];
@@ -75,17 +86,20 @@ const STYLES = [
 async function mkUser(tag) {
   const app = initializeApp(firebaseConfig, tag);
   const cred = await signInAnonymously(getAuth(app));
-  return { tag, uid: cred.user.uid, db: getDatabase(app) };
+  const db = getDatabase(app);
+  if (EMULATOR && !process.env.FIREBASE_DATABASE_EMULATOR_HOST) connectDatabaseEmulator(db, "127.0.0.1", 9000);
+  return { tag, uid: cred.user.uid, db };
 }
 const R = (u, code, sub = "") => ref(u.db, `rooms/${code}${sub ? "/" + sub : ""}`);
 const denied = async (label, fn) => {
+  if (EMULATOR) { log(`   – ${label}: skipped on emulator (production tokens are admin there; see npm run test:rules)`); return true; }
   try { await fn(); log(`   ✗ ${label}: ALLOWED (unexpected!)`); return false; }
   catch (e) { log(`   ✓ ${label}: blocked (${e.code || e.message})`); return true; }
 };
 
 // ── main ─────────────────────────────────────────────────────────────────
 const t0 = Date.now();
-step(`Signing in 1 teacher + ${N_STUDENTS} students (anonymous auth, one user per bot)`);
+step(`Signing in 1 teacher + ${N_STUDENTS} students (anonymous auth, one user per bot)${EMULATOR ? " — database: LOCAL EMULATOR" : " — database: LIVE"}`);
 const teacher = await mkUser("teacher");
 const students = await Promise.all(Array.from({ length: N_STUDENTS }, (_, i) => mkUser(`s${i}`)));
 students.forEach((s, i) => (s.name = NAMES[i % NAMES.length] + (i >= NAMES.length ? i : "")));
@@ -99,7 +113,7 @@ for (let i = 0; i < 5; i++) {
 }
 await set(R(teacher, code, "meta"), {
   labels: LABELS, teamCap: TEAM_CAP, ...(MAX_TEAMS ? { maxTeams: MAX_TEAMS } : {}),
-  phase: "lobby", teacherUid: teacher.uid, createdAt: serverTimestamp(),
+  round: 1, phase: "lobby", teacherUid: teacher.uid, createdAt: serverTimestamp(),
 });
 log(`   room ${code} · ${LABELS[0]} vs ${LABELS[1]} · max ${TEAM_CAP} per team · max teams ${MAX_TEAMS ?? "unlimited"}`);
 log(`   join link: https://mehdy922.github.io/neural-lab/?room=${code}`);
@@ -146,13 +160,24 @@ step(`Teacher presses "Start teaching" → phase teach`);
 await update(R(teacher, code, "meta"), { phase: "teach" });
 log(`   students now see tabs: ${visibleTabs("student", "teach").map((t) => t.label).join(", ")}`);
 
-step(`Each team draws ${MIN_PER_LABEL + 1} of each in its own style, trains (${NPIX}→${HID_A}→1, ${EPOCHS_A} epochs), tests, sends`);
 const trained = {};
-for (const [i, id] of teamIds.entries()) {
+const rands = {};
+const teamsNode = (await get(R(teacher, code, "teams"))).val();
+
+// One team trains on its current drawings and sends. Round ≥ 2 adds drawings in other teams' styles first.
+async function teachAndSend(id, i, round) {
   const t = teams[id];
-  const rand = mulberry32(100 + i);
-  const samples = [];
-  for (let k = 0; k < MIN_PER_LABEL + 1; k++) { samples.push({ label: 0, pix: drawShape(0, t.style, rand) }); samples.push({ label: 1, pix: drawShape(1, t.style, rand) }); }
+  const rand = (rands[id] ||= mulberry32(100 + i));
+  const samples = trained[id]?.samples || [];
+  if (round === 1) {
+    for (let k = 0; k < MIN_PER_LABEL + 1; k++) { samples.push({ label: 0, pix: drawShape(0, t.style, rand) }); samples.push({ label: 1, pix: drawShape(1, t.style, rand) }); }
+  } else {
+    // "Draw them the way other teams might": borrow two other styles.
+    const others = teamIds.filter((o) => o !== id).map((o) => teams[o].style).slice(0, 2);
+    for (const st of others.length ? others : [t.style]) for (let k = 0; k < 2; k++) {
+      samples.push({ label: 0, pix: drawShape(0, st, rand) }); samples.push({ label: 1, pix: drawShape(1, st, rand) });
+    }
+  }
   const net = newNet(NPIX, HID_A, samples.length * 7 + 3);
   const tTrain = Date.now();
   trainEpochs(net, samples.map((s) => s.pix), samples.map((s) => s.label), EPOCHS_A, LR_A);
@@ -162,25 +187,55 @@ for (const [i, id] of teamIds.entries()) {
   const sender = t.members[0];
   await set(R(sender, code, `models/${id}`), buildModelPayload({ net, samples, own, uid: sender.uid, rand }));
   trained[id] = { net, samples };
-  log(`   ${t.name.padEnd(14)} own ${pct(own)}  fresh ${LABELS[0]} → guessed "${LABELS[guess]}"  train ${Date.now() - tTrain} ms  ${sender.name} pressed Send`);
+  log(`   ${t.name.padEnd(14)} ${samples.length} drawings  own ${pct(own)}  fresh ${LABELS[0]} → "${LABELS[guess]}"  train ${Date.now() - tTrain} ms  ${sender.name} pressed Send`);
 }
-await denied(`${sA.name} (${teams[teamIds[0]].name}) overwrites ${teams[teamIds[1]].name}'s model`,
-  () => set(R(sA, code, `models/${teamIds[1]}`), buildModelPayload({ net: trained[teamIds[0]].net, samples: trained[teamIds[0]].samples, own: 0, uid: sA.uid })));
 
-step(`Teacher presses "Reveal tournament" — every model is scored on the OTHER teams' drawings`);
-await update(R(teacher, code, "meta"), { phase: "reveal" });
-const models = (await get(R(teacher, code, "models"))).val();
-const teamsNode = (await get(R(teacher, code, "teams"))).val();
-const rows = buildTournamentTable(models, teamsNode);
-const avg = tableAverages(rows);
-log(`   students now see tabs: ${visibleTabs("student", "reveal").map((t) => t.label).join(", ")}`);
-if (rows.length < MIN_TEAMS_MEANINGFUL) log(`   ⚠️  only ${rows.length} teams — the app shows "Needs at least 4 teams before this means anything"`);
-log("");
-log(`   PROJECTOR:   ${pct(avg.avgOwn)} on their own drawings   →   ${pct(avg.avgCross)} on everyone else's`);
-log("   " + "Team".padEnd(16) + "Own".padEnd(8) + "Strangers".padEnd(12) + "tested on");
-rows.forEach((r, i) => log(`   ${(i === 0 ? "⭐ " : "   ") + r.name.padEnd(13)} ${pct(r.own).padEnd(7)} ${pct(r.cross).padEnd(11)} ${r.n} drawings`));
-log("");
-log(`   "So what did your machine actually learn — ${LABELS[0].toLowerCase()}, or the way YOUR TEAM draws a ${LABELS[0].toLowerCase()}?"`);
+async function reveal(round) {
+  step(`Teacher presses "Reveal tournament" (round ${round}) — every model is scored on the OTHER teams' drawings`);
+  await update(R(teacher, code, "meta"), { phase: "reveal" });
+  const models = (await get(R(teacher, code, "models"))).val();
+  const rounds = (await get(R(teacher, code, "rounds"))).val();
+  const prev = round > 1 ? rounds?.[round - 1] || null : null;
+  const rows = withDeltas(buildTournamentTable(models, teamsNode), prev);
+  const avg = tableAverages(rows);
+  const hist = historyAverages(rounds).filter((h) => h.round < round);
+  if (round === 1) log(`   students now see tabs: ${visibleTabs("student", "reveal").map((t) => t.label).join(", ")}`);
+  if (rows.length < MIN_TEAMS_MEANINGFUL) log(`   ⚠️  only ${rows.length} teams — the app shows "Needs at least 4 teams before this means anything"`);
+  log("");
+  log(`   PROJECTOR (round ${round}):   ${pct(avg.avgOwn)} on their own drawings   →   ${pct(avg.avgCross)} on everyone else's`);
+  if (hist.length) log(`   ${hist.map((h) => `Round ${h.round}: ${pct(h.avgCross)}`).join(" → ")} → Round ${round}: ${pct(avg.avgCross)} on strangers`);
+  log("   " + "Team".padEnd(16) + "Own".padEnd(8) + "Strangers".padEnd(12) + (round > 1 ? "change".padEnd(9) : "") + "tested on");
+  rows.forEach((r, i) => {
+    const d = r.delta == null ? "" : `${r.delta >= 0 ? "▲ +" : "▼ "}${Math.round(r.delta * 100)}`;
+    log(`   ${(i === 0 ? "⭐ " : "   ") + r.name.padEnd(13)} ${pct(r.own).padEnd(7)} ${pct(r.cross).padEnd(11)} ${round > 1 ? d.padEnd(9) : ""}${r.n} drawings`);
+  });
+  log("");
+  log(round === 1
+    ? `   "So what did your machine actually learn — ${LABELS[0].toLowerCase()}, or the way YOUR TEAM draws a ${LABELS[0].toLowerCase()}?"`
+    : `   "The teams that climbed gave the same machine a wider view. What would you feed it next?"`);
+  return rows;
+}
+
+for (let round = 1; round <= ROUNDS; round++) {
+  if (round > 1) {
+    step(`Teacher presses "Next round" → round ${round}: scores saved, machines cleared, back to Teach it`);
+    const models = (await get(R(teacher, code, "models"))).val();
+    const results = summarizeRound(buildTournamentTable(models, teamsNode));
+    await update(R(teacher, code), { [`rounds/${round - 1}`]: results, models: null, "meta/round": round, "meta/phase": "teach" });
+    const cleared = (await get(R(teacher, code, "models"))).exists();
+    log(`   rounds/${round - 1} saved for ${Object.keys(results).length} teams · models cleared: ${!cleared} · students see tabs: ${visibleTabs("student", "teach").map((t) => t.label).join(", ")}`);
+  }
+  step(round === 1
+    ? `Each team draws ${MIN_PER_LABEL + 1} of each in its own style, trains (${NPIX}→${HID_A}→1, ${EPOCHS_A} epochs), tests, sends`
+    : `Round ${round}: each team adds 4 drawings per thing in two OTHER teams' styles, retrains, sends again`);
+  for (const [i, id] of teamIds.entries()) await teachAndSend(id, i, round);
+  if (round === 1) {
+    await denied(`${sA.name} (${teams[teamIds[0]].name}) overwrites ${teams[teamIds[1]].name}'s model`,
+      () => set(R(sA, code, `models/${teamIds[1]}`), buildModelPayload({ net: trained[teamIds[0]].net, samples: trained[teamIds[0]].samples, own: 0, uid: sA.uid })));
+    await denied(`${sA.name} tries to start the next round`, () => update(R(sA, code), { "meta/round": 2, "meta/phase": "teach" }));
+  }
+  await reveal(round);
+}
 
 step(`Teacher presses "Open bendy fence" — one team posts a checkerboard, others race to solve it`);
 await update(R(teacher, code, "meta"), { phase: "fence" });
@@ -211,7 +266,7 @@ if (KEEP) {
   log(`   Delete it later in the Firebase console under rooms/${code}.`);
 } else {
   step("Teacher cleans up (Reset board + delete teams, members, room)");
-  await update(R(teacher, code), { models: null, challenges: null });
+  await update(R(teacher, code), { models: null, challenges: null, rounds: null });
   for (const id of Object.keys(teamsNode || {})) await remove(R(teacher, code, `teams/${id}`));
   for (const s of students) await remove(R(teacher, code, `members/${s.uid}`));
   await remove(R(teacher, code, "meta"));

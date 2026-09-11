@@ -171,6 +171,30 @@ describe("challenges", () => {
   });
 });
 
+describe("rounds", () => {
+  it("meta.round must be a number >= 1", async () => {
+    await assertFails(db(TEACHER).ref(path("meta")).update({ round: 0 }));
+    await assertFails(db(TEACHER).ref(path("meta")).update({ round: "2" }));
+    await assertSucceeds(db(TEACHER).ref(path("meta")).update({ round: 2 }));
+  });
+  it("only the teacher writes round history; everyone can read it", async () => {
+    const results = { tA: { name: "A", own: 1, cross: 0.5 }, tB: { name: "B", own: 1 } };
+    await assertFails(db("s1").ref(path("rounds/1")).set(results));
+    await assertSucceeds(db(TEACHER).ref(path("rounds/1")).set(results));
+    await assertSucceeds(db("s2").ref(path("rounds")).get());
+  });
+  it("teacher can start the next round in one update; a student cannot", async () => {
+    await env.withSecurityRulesDisabled((ctx) => ctx.database().ref(path("models/tA")).set(validModel));
+    const upd = { "rounds/1": { tA: { name: "A", own: 1, cross: 0.5 } }, models: null, "meta/round": 2, "meta/phase": "teach" };
+    await assertFails(db("s1").ref(`rooms/${CODE}`).update(upd));
+    await assertSucceeds(db(TEACHER).ref(`rooms/${CODE}`).update(upd));
+  });
+  it("reset clears history and round", async () => {
+    await env.withSecurityRulesDisabled((ctx) => ctx.database().ref(path("rounds/1/tA")).set({ name: "A", own: 1, cross: 0.5 }));
+    await assertSucceeds(db(TEACHER).ref(`rooms/${CODE}`).update({ models: null, challenges: null, rounds: null, "meta/phase": "teach", "meta/round": 1 }));
+  });
+});
+
 describe("multi-path updates used by the client", () => {
   it("teacher can delete a team with its model and member links in one update", async () => {
     await env.withSecurityRulesDisabled((ctx) => ctx.database().ref(path("models/tA")).set(validModel));

@@ -10,6 +10,7 @@
           "teacherUid": { ".validate": "newData.isString()" },
           "teamCap": { ".validate": "newData.isNumber() && newData.val() >= 1 && newData.val() <= 12" },
           "maxTeams": { ".validate": "newData.isNumber() && newData.val() >= 2 && newData.val() <= 20" },
+          "round": { ".validate": "newData.isNumber() && newData.val() >= 1" },
           "phase": { ".validate": "newData.isString() && (newData.val() === 'lobby' || newData.val() === 'teach' || newData.val() === 'reveal' || newData.val() === 'fence')" },
           "labels": {
             "$i": { ".validate": "newData.isString() && newData.val().length >= 1 && newData.val().length <= 24" }
@@ -52,6 +53,18 @@
             "tests": { ".validate": "!newData.child('12').exists()" },
             "own": { ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 1" },
             "sentBy": { ".validate": "newData.isString()" }
+          }
+        },
+
+        "rounds": {
+          ".write": "auth != null && root.child('rooms/' + $code + '/meta/teacherUid').val() === auth.uid",
+          "$n": {
+            "$teamId": {
+              "name": { ".validate": "newData.isString()" },
+              "own": { ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 1" },
+              "cross": { ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 1" },
+              "$other": { ".validate": false }
+            }
           }
         },
 

@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { buildTournamentTable, tableAverages, MIN_TEAMS_TO_SHOW, MIN_TEAMS_MEANINGFUL } from "./scoring.js";
+import { buildTournamentTable, tableAverages, withDeltas, historyAverages, MIN_TEAMS_TO_SHOW, MIN_TEAMS_MEANINGFUL } from "./scoring.js";
 
 // 1-input, 1-hidden nets with hand-set weights.
 const signNet = { nIn: 1, nHid: 1, W1: [[10]], b1: [0], W2: [10], b2: 0 };   // x>0 -> 1
@@ -49,6 +49,45 @@ describe("tableAverages", () => {
   });
   it("returns nulls for empty", () => {
     expect(tableAverages([])).toEqual({ avgOwn: null, avgCross: null, count: 0 });
+  });
+});
+
+describe("withDeltas", () => {
+  const rows = [
+    { teamId: "tA", name: "Aloo", own: 1, cross: 0.75, n: 4 },
+    { teamId: "tB", name: "Bhindi", own: 1, cross: 0.5, n: 4 },
+    { teamId: "tC", name: "New", own: 1, cross: 0.6, n: 4 },
+  ];
+  it("attaches the previous round's cross score and the change", () => {
+    const prev = { tA: { name: "Aloo", own: 1, cross: 0.5 }, tB: { name: "Bhindi", own: 1, cross: 0.6 } };
+    const out = withDeltas(rows, prev);
+    expect(out[0]).toMatchObject({ teamId: "tA", prevCross: 0.5 });
+    expect(out[0].delta).toBeCloseTo(0.25, 9);
+    expect(out[1].delta).toBeCloseTo(-0.1, 9);
+    expect(out[2].prevCross).toBeNull();
+    expect(out[2].delta).toBeNull();
+  });
+  it("leaves rows untouched when there is no previous round", () => {
+    const out = withDeltas(rows, null);
+    out.forEach((r) => { expect(r.prevCross).toBeNull(); expect(r.delta).toBeNull(); });
+    expect(out).toHaveLength(3);
+  });
+});
+
+describe("historyAverages", () => {
+  it("averages cross per past round in round order", () => {
+    const rounds = {
+      2: { tA: { cross: 0.8 }, tB: { cross: 0.6 } },
+      1: { tA: { cross: 0.5 }, tB: { cross: 0.5 }, tC: {} },
+    };
+    expect(historyAverages(rounds)).toEqual([
+      { round: 1, avgCross: 0.5, count: 2 },
+      { round: 2, avgCross: 0.7, count: 2 },
+    ]);
+  });
+  it("is empty for no history", () => {
+    expect(historyAverages(null)).toEqual([]);
+    expect(historyAverages({})).toEqual([]);
   });
 });
 

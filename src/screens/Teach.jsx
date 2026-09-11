@@ -9,7 +9,7 @@ import { Thumb } from "../components/Thumb.jsx";
 
 const load = (key) => { try { return JSON.parse(localStorage.getItem(key) || "[]"); } catch { return []; } };
 
-export function Teach({ code, uid, members, labels, team, isTeacher, flash }) {
+export function Teach({ code, uid, members, labels, team, isTeacher, flash, round = 1 }) {
   const canvas = useRef(null);
   const storageKey = `nl.samples.${code}.${team?.id || "solo"}`;
   const [which, setWhich] = useState(0);
@@ -75,6 +75,15 @@ export function Teach({ code, uid, members, labels, team, isTeacher, flash }) {
 
   return (
     <main style={S.main}>
+      {round > 1 && (
+        <section style={{ ...S.card, gridColumn: "1 / -1", borderLeft: `8px solid ${C.sky}` }} className="nl-fade">
+          <div style={S.qKick}>Round {round} — improve your machine</div>
+          <p style={{ ...S.q, margin: 0 }}>
+            Your drawings are still here. Add more — especially ones drawn the way <em>other</em> teams might draw them —
+            then <b>Train</b> and <b>Send</b> again. {team && !sent.value ? "Not sent this round yet." : ""}
+          </p>
+        </section>
+      )}
       <section style={S.card} className="nl-fade">
         <h2 style={S.h2}>Draw {MIN_PER_LABEL}–6 of each</h2>
         <div style={S.pickRow}>
