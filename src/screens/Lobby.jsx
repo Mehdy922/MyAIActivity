@@ -84,8 +84,10 @@ export function Lobby({ code, uid, meta, members, teams, team, isTeacher, flash 
               teacher={isTeacher}
               onRename={(tid, name) => name.trim() && run(() => renameTeam({ code, teamId: tid, name }), "Renamed.")}
               onDelete={(tid) => {
-                if (window.confirm(`Delete team ${teams[tid]?.name}? Members go back to the lobby.`))
+                if (window.confirm(`Delete team ${teams[tid]?.name}? Members go back to the lobby.`)) {
                   run(() => deleteTeam({ code, teamId: tid, members }), "Team deleted.");
+                  setMoveTo(""); setMoveUid("");
+                }
               }} />
           ))}
         </div>

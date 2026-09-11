@@ -19,7 +19,9 @@ export function Settings({ code, meta, flash }) {
   const [cap, setCap] = useState(meta.teamCap || 4);
   const [busy, setBusy] = useState(false);
 
-  useEffect(() => { setA(meta.labels?.[0] || ""); setB(meta.labels?.[1] || ""); setCap(meta.teamCap || 4); }, [meta.labels, meta.teamCap]);
+  const labelA = meta.labels?.[0] || "", labelB = meta.labels?.[1] || "", metaCap = meta.teamCap || 4;
+  useEffect(() => { setA(labelA); setB(labelB); }, [labelA, labelB]);
+  useEffect(() => { setCap(metaCap); }, [metaCap]);
 
   const run = async (fn, ok) => {
     setBusy(true);

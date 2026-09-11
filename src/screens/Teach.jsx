@@ -21,7 +21,12 @@ export function Teach({ code, uid, members, labels, team, isTeacher, flash }) {
   const [sending, setSending] = useState(false);
   const sent = useTeamModel(code, team?.id);
 
-  useEffect(() => { setSamples(load(storageKey)); setNet(null); setOwnAcc(null); }, [storageKey]);
+  useEffect(() => {
+    const next = load(storageKey);
+    if (next.length) setSamples(next);   // team already has drawings on this device: use them
+    // otherwise keep the current samples; the save effect below stores them under the new key
+    setNet(null); setOwnAcc(null); setGuess(null);
+  }, [storageKey]);
   useEffect(() => { try { localStorage.setItem(storageKey, JSON.stringify(samples)); } catch { /* ignore */ } }, [samples, storageKey]);
 
   const counts = [0, 1].map((l) => samples.filter((s) => s.label === l).length);
@@ -74,7 +79,7 @@ export function Teach({ code, uid, members, labels, team, isTeacher, flash }) {
         <h2 style={S.h2}>Draw {MIN_PER_LABEL}–6 of each</h2>
         <div style={S.pickRow}>
           {labels.map((l, i) => (
-            <button key={l} className="nl-btn" onClick={() => setWhich(i)}
+            <button key={i} className="nl-btn" onClick={() => setWhich(i)}
               style={{ ...S.pick, ...(which === i ? { background: LABEL_COLORS[i], color: C.paper, boxShadow: `0 4px 0 ${LABEL_DEEP[i]}` } : null) }}>
               {l} <span style={S.pickN}>{counts[i]}</span>
             </button>
