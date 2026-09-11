@@ -2,7 +2,7 @@ import { defineConfig } from "vitest/config";
 import react from "@vitejs/plugin-react";
 
 export default defineConfig({
-  base: "/MyAIActivity/",
+  base: "/neural-lab/",
   plugins: [react()],
   test: {
     globals: true,

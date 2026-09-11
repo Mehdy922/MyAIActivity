@@ -13,7 +13,7 @@
 ## Global Constraints
 
 - Plain JavaScript, no TypeScript. React function components + hooks only.
-- Vite `base` is exactly `/MyAIActivity/`. Live URL `https://mehdy922.github.io/MyAIActivity/`.
+- Vite `base` is exactly `/neural-lab/`. Live URL `https://mehdy922.github.io/neural-lab/`.
 - Routing is by query param `?room=CODE` only. No router library.
 - Room code: 5 chars from `ABCDEFGHJKLMNPQRSTUVWXYZ23456789`.
 - Limits copied from spec: member name ≤ 24 chars, team name ≤ 22 chars, label ≤ 24 chars, team cap 1–12 (default 4), challenge ≤ 60 points, 3 test drawings per label, 4 drawings per label minimum before Train.

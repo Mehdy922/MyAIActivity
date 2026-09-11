@@ -67,15 +67,15 @@ Students who join during `teach` or later can still form/join a team and draw.
 
 ## 3. Stack and hosting
 
-- **Frontend**: Vite + React 18, plain JavaScript (no TypeScript). No router
+- **Frontend**: Vite + React 19, plain JavaScript (no TypeScript). No router
   library; room selected via `?room=CODE` query param.
 - **Backend**: Firebase Realtime Database (RTDB) + Firebase Anonymous
   Authentication, Spark (free) plan. Verified limits (2026-09-11):
   100 simultaneous connections, 1 GB stored, 10 GB/month download,
   no payment method required.
-- **Hosting**: GitHub Pages from the existing repo `Mehdy922/MyAIActivity`
+- **Hosting**: GitHub Pages from the existing repo `Mehdy922/neural-lab`
   via a GitHub Actions workflow on push to `main`. Vite `base` set to
-  `/MyAIActivity/`. Live URL: `https://mehdy922.github.io/MyAIActivity/`.
+  `/neural-lab/`. Live URL: `https://mehdy922.github.io/neural-lab/`.
 - **Config**: Firebase web config object committed in `src/firebase.js`
   (public by design; security is in RTDB rules). README gives the exact
   console steps: create project → enable Anonymous sign-in → create RTDB
