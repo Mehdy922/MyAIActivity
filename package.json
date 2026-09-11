@@ -9,7 +9,8 @@
     "preview": "vite preview",
     "test": "vitest run",
     "test:watch": "vitest",
-    "test:rules": "firebase emulators:exec --only database --project demo-neural-lab \"vitest run --config vitest.rules.config.js\""
+    "test:rules": "firebase emulators:exec --only database --project demo-neural-lab \"vitest run --config vitest.rules.config.js\"",
+    "simulate": "node scripts/simulate.mjs"
   },
   "dependencies": {
     "firebase": "^12.19.0",
