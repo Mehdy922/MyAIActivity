@@ -242,8 +242,12 @@ if (KEEP) {
   }
   step("Teacher cleans up (Reset board + delete teams, members, room)");
   await update(R(teacher, code), { models: null, challenges: null, rounds: null });
-  for (const id of Object.keys(teamsNode || {})) await remove(R(teacher, code, `teams/${id}`));
-  for (const s of students) await remove(R(teacher, code, `members/${s.uid}`));
+  // Re-read teams and members from the database: anyone who joined during a --hold (e.g. the
+  // screenshot browser) must go too, and the teacher is allowed to delete any member record.
+  const liveTeams = (await get(R(teacher, code, "teams"))).val() || {};
+  const liveMembers = (await get(R(teacher, code, "members"))).val() || {};
+  for (const id of Object.keys(liveTeams)) await remove(R(teacher, code, `teams/${id}`));
+  for (const uid of Object.keys(liveMembers)) await remove(R(teacher, code, `members/${uid}`));
   await remove(R(teacher, code, "meta"));
   log(`   rooms/${code} is gone: ${(await get(R(teacher, code))).exists() ? "NO — leftovers!" : "yes"}`);
 }
