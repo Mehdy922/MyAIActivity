@@ -20,6 +20,7 @@ import { buildModelPayload, summarizeRound, DEFAULT_TEAM_CAP, normalizeMaxTeams 
 import { buildTournamentTable, tableAverages, withDeltas, historyAverages, MIN_TEAMS_MEANINGFUL } from "../src/ml/scoring.js";
 import { generateRoomCode } from "../src/rooms/codes.js";
 import { visibleTabs } from "../src/rooms/phases.js";
+import { drawShape, STYLES } from "./lib/pixelart.mjs";
 
 // ── args ─────────────────────────────────────────────────────────────────
 const arg = (k, d) => { const i = process.argv.indexOf(`--${k}`); return i > -1 ? process.argv[i + 1] : d; };
@@ -27,6 +28,9 @@ const N_STUDENTS = Number(arg("students", 9));
 const MAX_TEAMS = normalizeMaxTeams(arg("max-teams", 3));
 const TEAM_CAP = DEFAULT_TEAM_CAP;
 const KEEP = process.argv.includes("--keep");
+// --hold N: keep the finished room alive for N seconds (e.g. to open it in a browser or take
+// screenshots), then clean it up. Ignored with --keep.
+const HOLD = Math.max(0, Number(arg("hold", 0)));
 const ROUNDS = Math.max(1, Number(arg("rounds", 1)));
 // --emulator: real (live) anonymous auth, but all database traffic goes to the local emulator on :9000,
 // which serves database.rules.json. Use it to test rule changes before publishing them:
@@ -46,41 +50,7 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 // ── synthetic "drawings": 16×16 pixel arrays with a per-team style ─────────
 // Each team draws the same two things differently: size, line weight, filled vs outline,
 // seam angle, wobble. That is exactly what makes a model learn "our team's mango".
-function drawShape(kind, style, rand) {
-  const pix = new Array(NPIX).fill(0);
-  const cx = GRID / 2 + (rand() - 0.5) * style.jitter, cy = GRID / 2 + (rand() - 0.5) * style.jitter;
-  const r = GRID * 0.5 * style.scale * (0.9 + rand() * 0.2);
-  const ex = kind === 0 ? 1.0 : 1.0, ey = kind === 0 ? 0.78 : 1.0;          // mango = squashed ellipse
-  const tilt = kind === 0 ? style.tilt : 0;
-  const cos = Math.cos(tilt), sin = Math.sin(tilt);
-  for (let y = 0; y < GRID; y++) for (let x = 0; x < GRID; x++) {
-    const dx = x + 0.5 - cx, dy = y + 0.5 - cy;
-    const u = (dx * cos + dy * sin) / (r * ex), v = (-dx * sin + dy * cos) / (r * ey);
-    const d = Math.sqrt(u * u + v * v);
-    let ink = 0;
-    if (style.filled) ink = d <= 1 ? 1 : 0;
-    else ink = Math.abs(d - 1) <= style.weight / r ? 1 : 0;
-    if (kind === 1 && d <= 1) {                                               // cricket ball seam
-      const s = style.seamVertical ? Math.abs(dx) : Math.abs(dy);
-      if (s <= style.weight * 0.6) ink = 1;
-      if (style.stitches && s <= style.weight * 1.8 && Math.round((style.seamVertical ? y : x) / 2) % 2 === 0) ink = 1;
-    }
-    if (kind === 0 && style.stem && dy < -r * ey * 0.85 && Math.abs(dx) < style.weight * 0.6) ink = 1; // mango stem
-    if (ink && rand() < style.dropout) ink = 0;
-    if (!ink && rand() < style.noise) ink = 0.6;
-    pix[y * GRID + x] = ink;
-  }
-  return pix;
-}
-
-const STYLES = [
-  { filled: true, scale: 0.85, weight: 1.2, tilt: -0.5, seamVertical: true, stitches: false, stem: true, jitter: 1.5, dropout: 0.02, noise: 0.00 },
-  { filled: false, scale: 0.9, weight: 1.6, tilt: 0.4, seamVertical: true, stitches: true, stem: false, jitter: 1.0, dropout: 0.05, noise: 0.01 },
-  { filled: false, scale: 0.6, weight: 1.0, tilt: -0.2, seamVertical: false, stitches: false, stem: true, jitter: 2.5, dropout: 0.08, noise: 0.02 },
-  { filled: true, scale: 0.7, weight: 2.2, tilt: 0.9, seamVertical: false, stitches: true, stem: false, jitter: 2.0, dropout: 0.03, noise: 0.03 },
-  { filled: false, scale: 0.8, weight: 2.4, tilt: 0.0, seamVertical: true, stitches: false, stem: true, jitter: 1.0, dropout: 0.10, noise: 0.00 },
-  { filled: true, scale: 0.95, weight: 1.0, tilt: -0.9, seamVertical: false, stitches: true, stem: true, jitter: 0.5, dropout: 0.00, noise: 0.05 },
-];
+// (Shared with the slide deck builder — see scripts/lib/pixelart.mjs.)
 
 // ── firebase users ───────────────────────────────────────────────────────
 async function mkUser(tag) {
@@ -265,6 +235,11 @@ if (KEEP) {
   log(`   Open https://mehdy922.github.io/neural-lab/?room=${code} as a Student to look around (phase is "fence", so all tabs show).`);
   log(`   Delete it later in the Firebase console under rooms/${code}.`);
 } else {
+  if (HOLD) {
+    step(`--hold: room ${code} stays open for ${HOLD} s — https://mehdy922.github.io/neural-lab/?room=${code}`);
+    log(`ROOM_CODE=${code}`);
+    await sleep(HOLD * 1000);
+  }
   step("Teacher cleans up (Reset board + delete teams, members, room)");
   await update(R(teacher, code), { models: null, challenges: null, rounds: null });
   for (const id of Object.keys(teamsNode || {})) await remove(R(teacher, code, `teams/${id}`));

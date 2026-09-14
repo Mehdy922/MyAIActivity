@@ -46,6 +46,17 @@ Troubleshooting:
 
 Teacher tips, run sheet and the one rule are in the **Settings** tab inside the room.
 
+## The lesson slides
+
+`slides/Neural-Lab-Lesson.pptx` is a 30–40 minute lesson for grades 9–12 that runs *before* the activity
+("How does a machine learn?"), with speaker notes and timings on every slide. Slides 1–14 are the lesson and
+end by launching the activity; slides 15–19 are the debrief, to be shown only after the tournament reveal.
+It uses fonts that ship with Windows and Office, so it opens the same on the school PC.
+
+The deck is generated (`npm run slides`) from `slides/build.mjs` using the app's palette and screenshots in
+`slides/img/`. To refresh the screenshots: `npm run simulate -- --rounds 2 --hold 600`, note the room code it
+prints, then `npm run screenshots -- --room CODE` while the room is open.
+
 ## Development
 
 ```bash

@@ -7,3 +7,6 @@ ui-debug.log
 *.local
 .claude/worktrees/
 .superpowers/
+slides/render/
+slides/.sim*.log
+slides/img/teach-full.png
